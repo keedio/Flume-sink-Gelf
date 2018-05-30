@@ -40,7 +40,4 @@ public class GelfSinkTest {
     Assert.assertEquals(msg, fetchedMsg);
 
   }
-
-
-
 }
