@@ -9,6 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Hello world!
@@ -44,7 +46,7 @@ public class GelfSink extends AbstractSink implements Configurable {
     int queueSize = context.getInteger("queue.size", 512);
     int connectTimeout = context.getInteger("connect.timeout", 5000);
     int reconnectDelay = context.getInteger("reconnect.delay", 1000);
-    boolean tcpNodealy = context.getBoolean("tcp.nodelay", true);
+    boolean tcpNodelay = context.getBoolean("tcp.nodelay", true);
     int sendBufferSize = context.getInteger("send.buffer.size", 32768);
 
     gelfConfiguration = new GelfConfiguration(new InetSocketAddress(hostName, hostPort))
@@ -52,7 +54,7 @@ public class GelfSink extends AbstractSink implements Configurable {
       .queueSize(queueSize)
       .connectTimeout(connectTimeout)
       .reconnectDelay(reconnectDelay)
-      .tcpNoDelay(tcpNodealy)
+      .tcpNoDelay(tcpNodelay)
       .sendBufferSize(sendBufferSize);
 
   }
@@ -85,7 +87,7 @@ public class GelfSink extends AbstractSink implements Configurable {
     final GelfTransport gelfTransport = GelfTransports.create(gelfConfiguration);
     final GelfMessageBuilder gelfMessageBuilder = new GelfMessageBuilder("", gelfMessageLevel)
       .level(GelfMessageLevel.valueOf(gelfMessageLevel))
-      .additionalField("_foo", "bar");
+      .additionalField("sinkName", this.getName());
 
     boolean blocking = false;
 
@@ -95,8 +97,10 @@ public class GelfSink extends AbstractSink implements Configurable {
     try {
       Event event = ch.take();
       byte[] payload = event.getBody();
+      Map<String,Object> headers = new HashMap<String, Object>();
+      headers.putAll(event.getHeaders());
       final GelfMessage gelfMessage = gelfMessageBuilder.message(new String(payload))
-        .additionalField("_count", "other value")
+        .additionalFields(headers)
         .build();
       if (blocking) {
         // Blocks until there is capacity in the queue

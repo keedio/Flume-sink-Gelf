@@ -34,9 +34,9 @@ mvn clean package
 
 #ACTIVE LIST
 #   agent.sinks = k1
-#   agent.sinks.k2.type = org.keedio.flume.sink.gelf.sink.GelfSink
-#   agent.sinks.k2.host.name = 192.168.1.100
-#   agent.sinks.k2.host.port = 12201
+#   agent.sinks.k1.type = org.keedio.flume.sink.gelf.sink.GelfSink
+#   agent.sinks.k1.host.name = 192.168.1.100
+#   agent.sinks.k1.host.port = 12201
 
 ##end of sink configuration for Agent 'agent'
 ````
