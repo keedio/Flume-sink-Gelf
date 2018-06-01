@@ -48,3 +48,22 @@ mvn clean package
 |------|-----------|---|----|---|
 |host.name|ip server |yes|-|Graylog server|
 |host.port| port to use for connection|no|12201|-|
+|transport.protocol|protocol transport layer|no|UDP|TCP or UDP|
+|queue.size|queue size |no|512|-|
+|connect.timeout|timeout for connection|no|5000|milisencods|
+|reconnect.delay|wait for delay to reconnect|no|1000|milisencods|
+|tcp.nodelay|socket option for sending data as soon as it's avalaible|no|true|Enabling TCP_NODELAY forces a socket to send the data in its buffer, whatever the packet size.|
+|send.buffer.size| buffer size |no| 32768|-|
+|gelf.message.level|informational level |no| INFO|TRACE, DEBUG,...|
+
+### Version history #####
+- 0.1.1
+    + Fix bug: Flume agent runs out of memory due to multiple connections. Reuse of GelfTransport and GelfMessageBuilder and initialize on sink start.
+    + Improve: create GelfMessage with String of event body instead of array of bytes.
+
+- 0.1.0:
+    + First stable release.
+
+
+
+

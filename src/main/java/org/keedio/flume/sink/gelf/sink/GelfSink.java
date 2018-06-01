@@ -13,7 +13,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Hello world!
+ * Luis Lazaro
+ * lalazaro@keedio.com
+ * Jun - 2018
  */
 public class GelfSink extends AbstractSink implements Configurable {
 
@@ -22,6 +24,9 @@ public class GelfSink extends AbstractSink implements Configurable {
   private GelfConfiguration gelfConfiguration;
   private String sinkName = this.getName();
   private Context context;
+  private GelfTransport gelfTransport = null;
+  private GelfMessageBuilder gelfMessageBuilder = null;
+  private String gelfMessageLevel  = null;
 
   /**
    * <p>
@@ -48,6 +53,7 @@ public class GelfSink extends AbstractSink implements Configurable {
     int reconnectDelay = context.getInteger("reconnect.delay", 1000);
     boolean tcpNodelay = context.getBoolean("tcp.nodelay", true);
     int sendBufferSize = context.getInteger("send.buffer.size", 32768);
+    gelfMessageLevel = context.getString("gelf.message.level", "INFO");
 
     gelfConfiguration = new GelfConfiguration(new InetSocketAddress(hostName, hostPort))
       .transport(GelfTransports.valueOf(transportProtocol))
@@ -61,12 +67,17 @@ public class GelfSink extends AbstractSink implements Configurable {
 
   @Override
   public synchronized void start() {
+   gelfTransport = GelfTransports.create(gelfConfiguration);
+   gelfMessageBuilder = new GelfMessageBuilder("", gelfMessageLevel)
+      .level(GelfMessageLevel.valueOf(gelfMessageLevel))
+      .additionalField("sinkName", sinkName);
     super.start();
   }
 
   @Override
   public synchronized void stop() {
     super.stop();
+    gelfTransport.stop();
   }
 
   /**
@@ -82,35 +93,30 @@ public class GelfSink extends AbstractSink implements Configurable {
    */
   @Override
   public Status process() throws EventDeliveryException {
-    String gelfMessageLevel = context.getString("gelf.message.level", "INFO");
-    Status status = null;
-    final GelfTransport gelfTransport = GelfTransports.create(gelfConfiguration);
-    final GelfMessageBuilder gelfMessageBuilder = new GelfMessageBuilder("", gelfMessageLevel)
-      .level(GelfMessageLevel.valueOf(gelfMessageLevel))
-      .additionalField("sinkName", this.getName());
-
+    Status status = Status.READY;
     boolean blocking = false;
-
     Channel ch = getChannel();
     Transaction txn = ch.getTransaction();
-    txn.begin();
+    Event event = null;
     try {
-      Event event = ch.take();
-      byte[] payload = event.getBody();
-      Map<String,Object> headers = new HashMap<String, Object>();
-      headers.putAll(event.getHeaders());
-      final GelfMessage gelfMessage = gelfMessageBuilder.message(new String(payload))
-        .additionalFields(headers)
-        .build();
-      if (blocking) {
-        // Blocks until there is capacity in the queue
-        gelfTransport.send(gelfMessage);
-      } else {
-        // Returns false if there isn't enough room in the queue
-        boolean enqueued = gelfTransport.trySend(gelfMessage);
-      }
-      status = Status.READY;
-      txn.commit();
+      txn.begin();
+      event = ch.take();
+       String eventBody = new String(event.getBody());
+       Map<String, Object> headers = new HashMap<String, Object>();
+       headers.putAll(event.getHeaders());
+       final GelfMessage gelfMessage = gelfMessageBuilder.message(eventBody)
+         .additionalFields(headers)
+         .build();
+
+       if (blocking) {
+         // Blocks until there is capacity in the queue
+         gelfTransport.send(gelfMessage);
+       } else {
+         // Returns false if there isn't enough room in the queue
+         boolean enqueued = gelfTransport.trySend(gelfMessage);
+       }
+       status = Status.READY;
+       txn.commit();
 
     } catch (Throwable t) {
       txn.rollback();
