@@ -13,7 +13,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Hello world!
+ * Luis Lazaro
+ * lalazaro@keedio.com
+ * Jun - 2018
  */
 public class GelfSink extends AbstractSink implements Configurable {
 
@@ -25,7 +27,6 @@ public class GelfSink extends AbstractSink implements Configurable {
   private GelfTransport gelfTransport = null;
   private GelfMessageBuilder gelfMessageBuilder = null;
   private String gelfMessageLevel  = null;
-  //= context.getString("gelf.message.level", "INFO");
 
   /**
    * <p>
