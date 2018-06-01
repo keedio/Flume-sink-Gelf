@@ -56,6 +56,13 @@ mvn clean package
 |send.buffer.size| buffer size |no| 32768|-|
 |gelf.message.level|informational level |no| INFO|TRACE, DEBUG,...|
 
+### Version history #####
+- 0.1.1
+    + Fix bug: Flume agent runs out of memory due to multiple connections. Reuse of GelfTransport and GelfMessageBuilder and initialize on sink start.
+    + Improve: create GelfMessage with String of event body instead of array of bytes.
+
+- 0.1.0:
+    + First stable release.
 
 
 
