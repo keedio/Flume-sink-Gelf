@@ -4,7 +4,7 @@
 
     <groupId>org.keedio.flume.sink.gelf</groupId>
     <artifactId>flume-sink-gelf</artifactId>
-    <version>0.1.1-SNAPSHOT</version>
+    <version>0.1.1</version>
     <packaging>jar</packaging>
 
     <name>Flume-sink-Gelf</name>
