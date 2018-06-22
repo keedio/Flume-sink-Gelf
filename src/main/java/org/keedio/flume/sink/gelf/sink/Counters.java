@@ -30,10 +30,10 @@ public class Counters {
   public void incrementCounter(String counterName) {
     synchronized (lock){
       if (!counters.containsKey(counterName)){
-        counters.put(counterName, new AtomicLong(0));
+        counters.put(counterName, new AtomicLong(1));
+      } else {
+        counters.get(counterName).incrementAndGet();
       }
-      
-      counters.get(counterName).incrementAndGet();
     }
   }
 

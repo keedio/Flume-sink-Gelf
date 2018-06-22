@@ -27,13 +27,15 @@ public class AggregatorController implements AutoCloseable {
     executorService.shutdown();
   }
 
-  class Aggregator implements Runnable{
+  class Aggregator implements Runnable {
 
     @Override
     public void run() {
       Map<String, AtomicLong> toBeSerialized = Counters.instance().copyCounters();
       
-      // TODO
+      if (toBeSerialized != null){
+        // TODO:
+      }
     }
   }
 }
