@@ -55,7 +55,8 @@ mvn clean package
 |tcp.nodelay|socket option for sending data as soon as it's avalaible|no|true|Enabling TCP_NODELAY forces a socket to send the data in its buffer, whatever the packet size.|
 |send.buffer.size| buffer size |no| 32768|-|
 |gelf.message.level|informational level |no| INFO|TRACE, DEBUG,...|
-|window.size.seconds|seconds for each aggregation window |no| 20|secpmds|
+|window.size.seconds|seconds for each aggregation window |no| 20|seconds|
+|json.field.name|name of the key containing source name |no| extraData|String|
 
 ### Version history #####
 - 0.1.1

@@ -3,11 +3,14 @@ package org.keedio.flume.sink.gelf.sink;
 import org.apache.flume.*;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.sink.AbstractSink;
+import org.codehaus.jackson.map.ObjectMapper;
+import org.codehaus.jackson.map.ObjectReader;
 import org.graylog2.gelfclient.*;
 import org.graylog2.gelfclient.transport.GelfTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.net.InetSocketAddress;
+import java.util.Map;
 
 /**
  * Luis Lazaro
@@ -21,8 +24,9 @@ public class GelfSink extends AbstractSink implements Configurable {
   private GelfConfiguration gelfConfiguration;
   private String sinkName = this.getName();
   private GelfTransport gelfTransport = null;
-  private String gelfMessageLevel  = null;
+  private String gelfMessageLevel = null;
   private int windowSizeSeconds;
+  private String jsonFieldName;
 
   /**
    * <p>
@@ -49,6 +53,7 @@ public class GelfSink extends AbstractSink implements Configurable {
     boolean tcpNodelay = context.getBoolean("tcp.nodelay", true);
     int sendBufferSize = context.getInteger("send.buffer.size", 32768);
     windowSizeSeconds = context.getInteger("window.size.seconds", 20);
+    jsonFieldName = context.getString("json.field.name", "extraData");
     gelfMessageLevel = context.getString("gelf.message.level", "INFO");
 
     gelfConfiguration = new GelfConfiguration(new InetSocketAddress(hostName, hostPort))
@@ -97,11 +102,10 @@ public class GelfSink extends AbstractSink implements Configurable {
       event = ch.take();
 
       String eventBody = new String(event.getBody());
-      String[] splittedEvent = eventBody.split("\"");
-
-      if (splittedEvent.length > 2) {
-        Counters.instance().incrementCounter(splittedEvent[3]);
-      }
+      ObjectReader reader = new ObjectMapper().reader(Map.class);
+      Map<String, Map<String, String>> eventObject = reader.readValue(eventBody);
+      String sourceName = eventObject.get(jsonFieldName).keySet().iterator().next();
+      Counters.instance().incrementCounter(sourceName);
 
       txn.commit();
     } catch (Throwable t) {
