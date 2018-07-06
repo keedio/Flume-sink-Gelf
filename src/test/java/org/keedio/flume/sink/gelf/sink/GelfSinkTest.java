@@ -27,15 +27,11 @@ public class GelfSinkTest {
     memoryChannel.put(event);
     tx.commit();
     tx.close();
-    try {
-      Sink.Status status = sink.process();
-      if (status == Sink.Status.BACKOFF) {
-        fail("Error Occurrred");
-      }
-
-    } catch (EventDeliveryException ex) {
-
+    Sink.Status status = sink.process();
+    if (status == Sink.Status.BACKOFF) {
+      fail("Error Occurrred");
     }
+
     String fetchedMsg = new String(event.getBody());
     Assert.assertEquals(msg, fetchedMsg);
 

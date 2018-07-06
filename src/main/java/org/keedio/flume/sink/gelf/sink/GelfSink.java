@@ -7,10 +7,7 @@ import org.graylog2.gelfclient.*;
 import org.graylog2.gelfclient.transport.GelfTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import java.net.InetSocketAddress;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * Luis Lazaro
@@ -23,10 +20,9 @@ public class GelfSink extends AbstractSink implements Configurable {
 
   private GelfConfiguration gelfConfiguration;
   private String sinkName = this.getName();
-  private Context context;
   private GelfTransport gelfTransport = null;
-  private GelfMessageBuilder gelfMessageBuilder = null;
   private String gelfMessageLevel  = null;
+  private int windowSizeSeconds;
 
   /**
    * <p>
@@ -40,11 +36,10 @@ public class GelfSink extends AbstractSink implements Configurable {
    * There are no thread safety guarantees on when configure might be called.
    * </p>
    *
-   * @param context
+   * @param context context
    */
   @Override
   public void configure(Context context) {
-    this.context = context;
     String hostName = context.getString("host.name", "127.0.0.1");
     int hostPort = context.getInteger("host.port", 12201);
     String transportProtocol = context.getString("transport.protocol", "UDP");
@@ -53,6 +48,7 @@ public class GelfSink extends AbstractSink implements Configurable {
     int reconnectDelay = context.getInteger("reconnect.delay", 1000);
     boolean tcpNodelay = context.getBoolean("tcp.nodelay", true);
     int sendBufferSize = context.getInteger("send.buffer.size", 32768);
+    windowSizeSeconds = context.getInteger("window.size.seconds", 20);
     gelfMessageLevel = context.getString("gelf.message.level", "INFO");
 
     gelfConfiguration = new GelfConfiguration(new InetSocketAddress(hostName, hostPort))
@@ -62,15 +58,15 @@ public class GelfSink extends AbstractSink implements Configurable {
       .reconnectDelay(reconnectDelay)
       .tcpNoDelay(tcpNodelay)
       .sendBufferSize(sendBufferSize);
-
   }
 
   @Override
   public synchronized void start() {
-   gelfTransport = GelfTransports.create(gelfConfiguration);
-   gelfMessageBuilder = new GelfMessageBuilder("", gelfMessageLevel)
+    gelfTransport = GelfTransports.create(gelfConfiguration);
+    GelfMessageBuilder gelfMessageBuilder = new GelfMessageBuilder("", gelfMessageLevel)
       .level(GelfMessageLevel.valueOf(gelfMessageLevel))
       .additionalField("sinkName", sinkName);
+    new AggregatorController(gelfMessageBuilder, gelfTransport, windowSizeSeconds);
     super.start();
   }
 
@@ -88,41 +84,30 @@ public class GelfSink extends AbstractSink implements Configurable {
    *
    * @return READY if 1 or more Events were successfully delivered, BACKOFF if
    * no data could be retrieved from the channel feeding this sink
-   * @throws EventDeliveryException In case of any kind of failure to
-   *                                deliver data to the next hop destination.
    */
   @Override
-  public Status process() throws EventDeliveryException {
+  public Status process() {
     Status status = Status.READY;
-    boolean blocking = false;
     Channel ch = getChannel();
     Transaction txn = ch.getTransaction();
-    Event event = null;
+    Event event;
+
     try {
       txn.begin();
       event = ch.take();
-       String eventBody = new String(event.getBody());
-       Map<String, Object> headers = new HashMap<String, Object>();
-       headers.putAll(event.getHeaders());
-       final GelfMessage gelfMessage = gelfMessageBuilder.message(eventBody)
-         .additionalFields(headers)
-         .build();
 
-       if (blocking) {
-         // Blocks until there is capacity in the queue
-         gelfTransport.send(gelfMessage);
-       } else {
-         // Returns false if there isn't enough room in the queue
-         boolean enqueued = gelfTransport.trySend(gelfMessage);
-       }
-       status = Status.READY;
-       txn.commit();
+      String eventBody = new String(event.getBody());
+      String[] splittedEvent = eventBody.split("\"");
 
+      if (splittedEvent.length > 2) {
+        Counters.instance().incrementCounter(splittedEvent[3]);
+      }
+
+      txn.commit();
     } catch (Throwable t) {
       txn.rollback();
       // Log exception, handle individual exceptions as needed
       status = Status.BACKOFF;
-
     } finally {
       if (txn != null) {
         txn.close();
