@@ -116,7 +116,6 @@ public class GelfSink extends AbstractSink implements Configurable {
             event = ch.take();
 
             String eventBody = new String(event.getBody());
-            //fixme: exception thrown if jsonfieldname not found
             if (isAggregatorEnabled) {
                 if ( jsonFieldName != null ) {
                     tagCounter = JsonPath.read(eventBody, "$." + jsonFieldName);
