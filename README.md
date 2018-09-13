@@ -86,7 +86,7 @@ if aggreator is enabled, and property
 2.- Tag is a header from flume event like:
 
 ```
-Headers: {fileName: file1.csv, timestamp: 13573892492743, ...}
+Headers: {fileName: file1.csv, timestamp: 1479249799770, ...}
 Payload: "line of information for file1.csv"
 ```
 
@@ -114,7 +114,7 @@ header.field.name = fileName
 
 ### Version history #####
 - 0.1.2:
-    + aggregate controller is configurable.
+    + aggregator controller is configurable.
     + parse json with JsonPath.
     + Flume event header can be a tag to group by.
 
