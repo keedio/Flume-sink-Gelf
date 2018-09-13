@@ -4,14 +4,13 @@ import com.jayway.jsonpath.JsonPath;
 import org.apache.flume.*;
 import org.apache.flume.conf.Configurable;
 import org.apache.flume.sink.AbstractSink;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.ObjectReader;
 import org.graylog2.gelfclient.*;
 import org.graylog2.gelfclient.transport.GelfTransport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.InetSocketAddress;
+import java.util.HashMap;
 import java.util.Map;
 
 /**
@@ -29,6 +28,10 @@ public class GelfSink extends AbstractSink implements Configurable {
     private String gelfMessageLevel = null;
     private int windowSizeSeconds;
     private String jsonFieldName;
+    private String headerFiledName;
+    private boolean isAggregatorEnabled;
+    private GelfMessageBuilder gelfMessageBuilder = null;
+    private String tagCounter;
 
     /**
      * <p>
@@ -55,8 +58,11 @@ public class GelfSink extends AbstractSink implements Configurable {
         boolean tcpNodelay = context.getBoolean("tcp.nodelay", true);
         int sendBufferSize = context.getInteger("send.buffer.size", 32768);
         windowSizeSeconds = context.getInteger("window.size.seconds", 20);
-        jsonFieldName = context.getString("json.field.name", "extraData.source");
+        jsonFieldName = context.getString("json.field.name", null);
+        headerFiledName= context.getString("header.field.name", null);
+
         gelfMessageLevel = context.getString("gelf.message.level", "INFO");
+        isAggregatorEnabled = context.getBoolean("aggregator.enabled", false);
 
         gelfConfiguration = new GelfConfiguration(new InetSocketAddress(hostName, hostPort))
                 .transport(GelfTransports.valueOf(transportProtocol))
@@ -70,10 +76,16 @@ public class GelfSink extends AbstractSink implements Configurable {
     @Override
     public synchronized void start() {
         gelfTransport = GelfTransports.create(gelfConfiguration);
-        GelfMessageBuilder gelfMessageBuilder = new GelfMessageBuilder("", gelfMessageLevel)
+        gelfMessageBuilder = new GelfMessageBuilder("", gelfMessageLevel)
                 .level(GelfMessageLevel.valueOf(gelfMessageLevel))
                 .additionalField("sinkName", sinkName);
-        new AggregatorController(gelfMessageBuilder, gelfTransport, windowSizeSeconds);
+
+        if (isAggregatorEnabled) {
+            new AggregatorController(gelfMessageBuilder, gelfTransport, windowSizeSeconds);
+        }
+
+
+
         super.start();
     }
 
@@ -104,9 +116,25 @@ public class GelfSink extends AbstractSink implements Configurable {
             event = ch.take();
 
             String eventBody = new String(event.getBody());
-            String sourceName = JsonPath.read(eventBody, "$."+ jsonFieldName);
-            Counters.instance().incrementCounter(sourceName);
-
+            //fixme: exception thrown if jsonfieldname not found
+            if (isAggregatorEnabled) {
+                if ( jsonFieldName != null ) {
+                    tagCounter = JsonPath.read(eventBody, "$." + jsonFieldName);
+                } else if (headerFiledName != null) {
+                    tagCounter = event.getHeaders().get(headerFiledName);
+                } else {
+                    LOG.error("No tag for counter was set, but aggregator is set to true.");
+                }
+                Counters.instance().incrementCounter(tagCounter);
+            } else {
+                Map<String, Object> headers = new HashMap<String, Object>();
+                headers.putAll(event.getHeaders());
+                final GelfMessage gelfMessage = gelfMessageBuilder.message(eventBody)
+                        .additionalFields(headers)
+                        .build();
+                gelfTransport.trySend(gelfMessage);
+            }
+            status = Status.READY;
             txn.commit();
         } catch (Throwable t) {
             txn.rollback();
